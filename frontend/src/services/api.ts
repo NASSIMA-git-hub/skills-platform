@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AuthResponse, User, Skill, UserSkill, Project, JobOpening, Application, Notification, ProjectEvaluation, Ranking, Company, ProjectAssignment } from "../types";
+import type { AuthResponse, User, Skill, UserSkill, Project, JobOpening, Application, Notification, ProjectEvaluation, Ranking, Company, ProjectAssignment, FeedPost, Message } from "../types";
 
 const api = axios.create({
   baseURL: "/api",
@@ -24,6 +24,8 @@ export const authAPI = {
   
   updateProfile: (data: { fullName?: string; profilePic?: string }) =>
     api.put<{ user: User }>("/users/me", data),
+
+  googleAuth: () => api.get("/auth/google"),
 };
 
 export const skillsAPI = {
@@ -84,6 +86,9 @@ export const notificationsAPI = {
 export const rankingsAPI = {
   getSkillRankings: (skillId: string, limit?: number) =>
     api.get<{ rankings: Ranking[] }>("/ai/rankings", { params: { skillId, limit } }),
+  
+  getLeaderboard: (skillId?: string, period?: string) =>
+    api.get<{ rankings: Ranking[] }>("/leaderboard", { params: { skillId, period } }),
 };
 
 export const companiesAPI = {
@@ -92,6 +97,33 @@ export const companiesAPI = {
   
   create: (data: { name: string; industry: string; website?: string }) =>
     api.post<{ company: Company }>("/companies", data),
+};
+
+export const feedAPI = {
+  getPosts: (limit?: number, offset?: number) =>
+    api.get<{ posts: FeedPost[] }>("/feed", { params: { limit, offset } }),
+  
+  createPost: (data: { title: string; content: string; imageUrl?: string; tags?: string[] }) =>
+    api.post<{ post: FeedPost }>("/feed", data),
+  
+  likePost: (postId: string) =>
+    api.put<{ post: FeedPost }>("/feed", { postId }),
+};
+
+export const messagesAPI = {
+  getAll: (userId?: string) =>
+    api.get<{ messages: Message[] }>("/messages", { params: { userId } }),
+  
+  send: (data: { receiverId: string; content: string }) =>
+    api.post<{ message: Message }>("/messages", data),
+  
+  markAsRead: (messageId: string) =>
+    api.put<{ message: Message }>("/messages", { messageId }),
+};
+
+export const chatAPI = {
+  sendMessage: (message: string) =>
+    api.post<{ reply: string }>("/chat", { message }),
 };
 
 export default api;

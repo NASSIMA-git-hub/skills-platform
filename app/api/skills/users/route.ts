@@ -2,6 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authMiddleware, AuthenticatedRequest } from "@/lib/middleware";
 
+// GET /api/skills/users - Get user's skills
+async function getUserSkills(req: AuthenticatedRequest) {
+  const user = req.user;
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const userSkills = await prisma.userSkill.findMany({
+      where: { userId: user.userId },
+      include: { skill: true },
+      orderBy: { score: "desc" },
+    });
+
+    return NextResponse.json({ userSkills });
+  } catch (error) {
+    console.error("Get user skills error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
 async function addUserSkill(req: AuthenticatedRequest) {
   const user = req.user;
 
@@ -55,4 +80,5 @@ async function addUserSkill(req: AuthenticatedRequest) {
   }
 }
 
+export const GET = authMiddleware(getUserSkills);
 export const POST = authMiddleware(addUserSkill);

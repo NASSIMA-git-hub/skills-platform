@@ -87,8 +87,10 @@ export interface Application {
 export interface Notification {
   id: string;
   userId: string;
-  type: "SKILL_UPDATE" | "PROJECT_UPDATE" | "JOB_ALERT" | "NEWS";
+  type: "SKILL_UPDATE" | "PROJECT_UPDATE" | "JOB_ALERT" | "NEWS" | "ACHIEVEMENT" | "SYSTEM";
+  title?: string;
   content: string;
+  link?: string;
   read: boolean;
   createdAt: string;
 }
@@ -110,4 +112,33 @@ export interface Ranking {
   score: number;
   level: number;
   verified: boolean;
+  avgScore?: number;
+  totalProjects?: number;
+  verifiedSkills?: number;
+  totalSkills?: number;
+}
+
+export interface FeedPost {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorPic?: string;
+  title: string;
+  content: string;
+  imageUrl?: string;
+  tags: string[];
+  likes: number;
+  comments: number;
+  createdAt: string;
+}
+
+export interface Message {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  read: boolean;
+  createdAt: string;
+  sender?: Pick<User, "id" | "fullName" | "profilePic">;
+  receiver?: Pick<User, "id" | "fullName" | "profilePic">;
 }

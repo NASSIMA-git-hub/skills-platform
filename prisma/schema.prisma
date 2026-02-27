@@ -5,62 +5,81 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id           String       @id @default(uuid())
-  fullName     String
-  email        String       @unique
-  passwordHash String
-  role         Role
-  profilePic   String?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  skills       UserSkill[]
-  projects     ProjectAssignment[]
+  id             String       @id @default(uuid())
+  fullName       String
+  email          String       @unique
+  passwordHash   String?
+  role           Role         @default(STUDENT)
+  profilePic     String?
+  oauthProvider  String?
+  oauthId        String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  skills         UserSkill[]
+  projects       ProjectAssignment[]
   notifications Notification[]
-  applications Application[]
+  applications   Application[]
+  messagesSent   Message[]    @relation("SentMessages")
+  messagesRecv   Message[]    @relation("ReceivedMessages")
+
+  @@index([email])
+  @@index([role])
 }
 
 enum Role {
   STUDENT
   MENTOR
   COMPANY
+  ADMIN
 }
 
 model Skill {
   id             String      @id @default(uuid())
-  name           String
+  name           String      @unique
   category       String
-  difficultyLevel Int
+  difficultyLevel Int        @default(1)
+  iconUrl        String?
   createdAt      DateTime    @default(now())
   userSkills     UserSkill[]
+
+  @@index([category])
 }
 
 model UserSkill {
   id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  skill     Skill    @relation(fields: [skillId], references: [id])
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
   skillId   String
-  level     Int
+  level     Int      @default(1)
   verified  Boolean  @default(false)
-  score     Float
+  score     Float    @default(0)
   updatedAt DateTime @updatedAt
 
   @@unique([userId, skillId])
+  @@index([userId])
+  @@index([skillId])
 }
 
 model Project {
-  id          String                @id @default(uuid())
-  name        String
-  description String
-  difficultyLevel Int
-  createdBy   String
-  type        ProjectType
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  assignments ProjectAssignment[]
+  id               String                @id @default(uuid())
+  name             String
+  description     String
+  difficultyLevel Int                   @default(1)
+  createdBy        String
+  type             ProjectType           @default(INDIVIDUAL)
+  tags             String[]
+  thumbnailUrl    String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  assignments      ProjectAssignment[]
+
+  @@index([createdBy])
+  @@index([type])
 }
 
 enum ProjectType {
@@ -69,66 +88,106 @@ enum ProjectType {
 }
 
 model ProjectAssignment {
-  id               String   @id @default(uuid())
-  project          Project  @relation(fields: [projectId], references: [id])
+  id               String     @id @default(uuid())
+  project          Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId        String
-  user             User     @relation(fields: [userId], references: [id])
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId           String
-  role             String
-  performanceScore Float
-  completed        Boolean  @default(false)
+  role             String     @default("Developer")
+  performanceScore Float      @default(0)
+  evaluationResult Json?
+  completed        Boolean    @default(false)
   completedAt      DateTime?
+
+  @@unique([projectId, userId])
+  @@index([userId])
 }
 
 model Company {
-  id        String       @id @default(uuid())
-  name      String
-  industry  String
-  website   String?
-  createdAt DateTime     @default(now())
+  id          String       @id @default(uuid())
+  name        String
+  industry    String
+  description String?
+  logoUrl     String?
+  website     String?
+  size        String?
+  location    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   jobOpenings JobOpening[]
+
+  @@index([industry])
 }
 
 model JobOpening {
   id             String      @id @default(uuid())
-  company        Company     @relation(fields: [companyId], references: [id])
+  company        Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId      String
   title          String
   description    String
   requiredSkills Json
-  minExperience  Int
+  niceToHaveSkills Json?
+  minExperience  Int         @default(0)
+  maxExperience  Int?
   salaryRange    Json
+  location       String?
+  jobType        String      @default("FULL_TIME")
+  status         JobStatus   @default(ACTIVE)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   applications   Application[]
+
+  @@index([companyId])
+  @@index([status])
+}
+
+enum JobStatus {
+  ACTIVE
+  CLOSED
+  DRAFT
 }
 
 model Application {
-  id       String   @id @default(uuid())
-  job      JobOpening @relation(fields: [jobId], references: [id])
-  jobId    String
-  user     User      @relation(fields: [userId], references: [id])
-  userId   String
-  status   ApplicationStatus @default(APPLIED)
-  score    Float?
-  appliedAt DateTime  @default(now())
+  id         String            @id @default(uuid())
+  job        JobOpening        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId      String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  status     ApplicationStatus @default(APPLIED)
+  score      Float?
+  coverLetter String?
+  resumeUrl  String?
+  appliedAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@unique([jobId, userId])
+  @@index([userId])
+  @@index([jobId])
 }
 
 enum ApplicationStatus {
   APPLIED
+  REVIEWING
   INTERVIEW
+  OFFER
   HIRED
   REJECTED
+  WITHDRAWN
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id])
+  id        String           @id @default(uuid())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   type      NotificationType
+  title     String
   content   String
-  read      Boolean   @default(false)
-  createdAt DateTime  @default(now())
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([read])
 }
 
 enum NotificationType {
@@ -136,13 +195,19 @@ enum NotificationType {
   PROJECT_UPDATE
   JOB_ALERT
   NEWS
+  ACHIEVEMENT
+  SYSTEM
 }
 
 model AIAgent {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   type        AgentType
+  name        String
   description String?
-  status      Boolean @default(true)
+  status      Boolean    @default(true)
+  config      Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 enum AgentType {
@@ -150,4 +215,45 @@ enum AgentType {
   MENTOR
   MARKET
   CAREER_COACH
+  SKILL_ANALYZER
+}
+
+model Message {
+  id          String      @id @default(uuid())
+  sender      User        @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId    String
+  receiver    User        @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  receiverId  String
+  content     String
+  read        Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+model FeedPost {
+  id        String   @id @default(uuid())
+  authorId  String
+  authorName String
+  authorPic String?
+  title     String
+  content   String
+  imageUrl  String?
+  tags      String[]
+  likes     Int      @default(0)
+  comments  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([authorId])
+}
+
+model Leaderboard {
+  id         String   @id @default(uuid())
+  skillId    String
+  period     String   @default("ALL_TIME")
+  entries    Json
+  updatedAt  DateTime @updatedAt
+
+  @@unique([skillId, period])
 }
