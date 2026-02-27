@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authMiddleware, AuthenticatedRequest } from "@/lib/middleware";
 
-async function getCurrentUser(req: AuthenticatedRequest) {
+async function updateUser(req: AuthenticatedRequest) {
   const user = req.user;
 
   if (!user) {
@@ -12,39 +12,34 @@ async function getCurrentUser(req: AuthenticatedRequest) {
     );
   }
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.userId },
-    select: {
-      id: true,
-      fullName: true,
-      email: true,
-      role: true,
-      profilePic: true,
-      createdAt: true,
-      updatedAt: true,
-      skills: {
-        include: {
-          skill: true,
-        },
-      },
-      _count: {
-        select: {
-          projects: true,
-          applications: true,
-          notifications: true,
-        },
-      },
-    },
-  });
+  try {
+    const body = await req.json();
+    const { fullName, profilePic } = body;
 
-  if (!dbUser) {
+    const updatedUser = await prisma.user.update({
+      where: { id: user.userId },
+      data: {
+        ...(fullName && { fullName }),
+        ...(profilePic && { profilePic }),
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        profilePic: true,
+        updatedAt: true,
+      },
+    });
+
+    return NextResponse.json({ user: updatedUser });
+  } catch (error) {
+    console.error("Update user error:", error);
     return NextResponse.json(
-      { error: "User not found" },
-      { status: 404 }
+      { error: "Internal server error" },
+      { status: 500 }
     );
   }
-
-  return NextResponse.json({ user: dbUser });
 }
 
-export const GET = authMiddleware(getCurrentUser);
+export const PUT = authMiddleware(updateUser);

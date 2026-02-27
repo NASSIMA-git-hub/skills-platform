@@ -1,27 +1,71 @@
-import { useState } from 'react'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import Layout from "./components/Layout";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import DashboardPage from "./pages/DashboardPage";
+import ProjectsPage from "./pages/ProjectsPage";
+import JobsPage from "./pages/JobsPage";
 
-function App() {
-  const [message, setMessage] = useState<string>('')
-
-  const testApi = async () => {
-    try {
-      const res = await fetch('/api/test')
-      const data = await res.json()
-      setMessage(JSON.stringify(data))
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Error connecting to backend')
-    }
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
-
-  return (
-    <div className="app">
-      <h1>Skills Platform</h1>
-      <p>Vite + React 19 frontend is ready!</p>
-      <button onClick={testApi}>Test API Connection</button>
-      {message && <pre>{message}</pre>}
-    </div>
-  )
+  
+  return user ? <>{children}</> : <Navigate to="/login" />;
 }
 
-export default App
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+  
+  return user ? <Navigate to="/dashboard" /> : <>{children}</>;
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <LoginPage />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicRoute>
+                <RegisterPage />
+              </PublicRoute>
+            }
+          />
+          
+          <Route
+            element={
+              <PrivateRoute>
+                <Layout />
+              </PrivateRoute>
+            }
+          >
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/jobs" element={<JobsPage />} />
+          </Route>
+          
+          <Route path="/" element={<Navigate to="/dashboard" />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+
+export default App;
